@@ -4,6 +4,7 @@ const path = require('path');
 const serverless = require('serverless-http');
 const app = express();
 const bodyParser = require('body-parser');
+const ytdl = require('ytdl-core');
 
 const router = express.Router();
 router.get('/', (req, res) => {
@@ -16,7 +17,24 @@ router.post('/', (req, res) => res.json({ postBody: req.body }));
 
 app.use(bodyParser.json());
 app.use('/.netlify/functions/server', router);  // path must route to lambda
-app.use('/', (req, res) => res.sendFile(path.join(__dirname, '../index.html')));
+
+//fiturnya
+app.get('/download', async (req, res) => {
+  try {
+    const videoURL = req.query.url;
+    const info = await ytdl.getInfo(videoURL);
+    const format = ytdl.chooseFormat(info.formats, { quality: 'highestaudio' });
+
+    res.header('Content-Disposition', `attachment; filename="${info.title}.mp3"`);
+    ytdl(videoURL, { format: format })
+      .pipe(res);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error during download');
+  }
+});
+
+
 
 module.exports = app;
 module.exports.handler = serverless(app);
